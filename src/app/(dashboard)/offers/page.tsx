@@ -48,7 +48,7 @@ import { useToast } from "@/hooks/use-toast";
 import { auth, db } from '@/lib/firebase';
 import type { User } from 'firebase/auth';
 import { ref, onValue, push, set, remove, serverTimestamp, child } from "firebase/database";
-import { PlusCircle, Edit, Trash2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, PackageOpen } from "lucide-react";
 import { useRouter } from 'next/navigation';
 
 const offerFormSchema = z.object({
