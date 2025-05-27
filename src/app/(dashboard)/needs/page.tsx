@@ -54,10 +54,10 @@ import { useToast } from "@/hooks/use-toast";
 import { auth, db } from '@/lib/firebase';
 import type { User } from 'firebase/auth';
 import { ref, onValue, push, set, remove, serverTimestamp, child } from "firebase/database";
-import { PlusCircle, Edit, Trash2, PackageOpen, Tag } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Search, Tag } from "lucide-react";
 import { useRouter } from 'next/navigation';
 
-const offerFormSchema = z.object({
+const needFormSchema = z.object({
   title: z.string().min(3, {
     message: "Title must be at least 3 characters.",
   }).max(100, {
@@ -73,17 +73,17 @@ const offerFormSchema = z.object({
   }),
 });
 
-type OfferFormValues = z.infer<typeof offerFormSchema>;
+type NeedFormValues = z.infer<typeof needFormSchema>;
 
-interface Offer {
+interface Need {
   id: string;
   title: string;
-  category?: "Services" | "Items" | "Skills"; // Optional for backward compatibility
+  category: "Services" | "Items" | "Skills";
   description: string;
   createdAt: number | object;
   updatedAt: number | object;
-  userId?: string; // For allOffers
-  userDisplayName?: string; // For allOffers
+  userId?: string; // For allNeeds
+  userDisplayName?: string; // For allNeeds
 }
 
 const categoryIcons = {
@@ -92,19 +92,19 @@ const categoryIcons = {
   Skills: "🎯"
 };
 
-export default function MyOffersPage() {
+export default function MyNeedsPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [offers, setOffers] = useState<Offer[]>([]);
+  const [needs, setNeeds] = useState<Need[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [currentOffer, setCurrentOffer] = useState<Offer | null>(null);
-  const [offerToDelete, setOfferToDelete] = useState<string | null>(null);
+  const [currentNeed, setCurrentNeed] = useState<Need | null>(null);
+  const [needToDelete, setNeedToDelete] = useState<string | null>(null);
 
-  const form = useForm<OfferFormValues>({
-    resolver: zodResolver(offerFormSchema),
+  const form = useForm<NeedFormValues>({
+    resolver: zodResolver(needFormSchema),
     defaultValues: {
       title: "",
       category: undefined,
@@ -124,37 +124,33 @@ export default function MyOffersPage() {
     return () => unsubscribe();
   }, [router]);
 
-  const fetchOffers = useCallback(() => {
+  const fetchNeeds = useCallback(() => {
     if (!currentUser) return;
-    const userOffersRef = ref(db, `userOffers/${currentUser.uid}`);
-    const unsubscribe = onValue(userOffersRef, (snapshot) => {
+    const userNeedsRef = ref(db, `userNeeds/${currentUser.uid}`);
+    const unsubscribe = onValue(userNeedsRef, (snapshot) => {
       const data = snapshot.val();
-      const loadedOffers: Offer[] = [];
+      const loadedNeeds: Need[] = [];
       for (const key in data) {
-        loadedOffers.push({ id: key, ...data[key] });
+        loadedNeeds.push({ id: key, ...data[key] });
       }
-      setOffers(loadedOffers.sort((a, b) => (b.createdAt as number) - (a.createdAt as number))); 
+      setNeeds(loadedNeeds.sort((a, b) => (b.createdAt as number) - (a.createdAt as number))); 
       setIsLoading(false);
     }, (error) => {
-      console.error("Error fetching offers:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not fetch your offers." });
+      console.error("Error fetching needs:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not fetch your needs." });
       setIsLoading(false);
     });
     return () => unsubscribe();
   }, [currentUser, toast]);
 
   useEffect(() => {
-    fetchOffers();
-  }, [fetchOffers]);
+    fetchNeeds();
+  }, [fetchNeeds]);
 
-  const handleDialogOpen = (offer: Offer | null = null) => {
-    setCurrentOffer(offer);
-    if (offer) {
-      form.reset({ 
-        title: offer.title, 
-        category: offer.category, // This will be undefined for old offers, which is fine
-        description: offer.description 
-      });
+  const handleDialogOpen = (need: Need | null = null) => {
+    setCurrentNeed(need);
+    if (need) {
+      form.reset({ title: need.title, category: need.category, description: need.description });
     } else {
       form.reset({ title: "", category: undefined, description: "" });
     }
@@ -163,17 +159,17 @@ export default function MyOffersPage() {
 
   const handleDialogClose = () => {
     setIsDialogOpen(false);
-    setCurrentOffer(null);
+    setCurrentNeed(null);
     form.reset();
   };
 
-  async function onSubmitOffer(data: OfferFormValues) {
+  async function onSubmitNeed(data: NeedFormValues) {
     if (!currentUser) {
       toast({ variant: "destructive", title: "Error", description: "You must be logged in." });
       return;
     }
 
-    const offerData = {
+    const needData = {
       title: data.title,
       category: data.category,
       description: data.description,
@@ -183,83 +179,83 @@ export default function MyOffersPage() {
     const userDisplayName = currentUser.displayName || currentUser.email || "Anonymous Swapper";
 
     try {
-      if (currentOffer) { // Editing existing offer
-        const userOfferRef = ref(db, `userOffers/${currentUser.uid}/${currentOffer.id}`);
-        const allOfferRef = ref(db, `allOffers/${currentOffer.id}`);
-        await set(userOfferRef, { ...currentOffer, ...offerData, userId: undefined, userDisplayName: undefined }); // Remove user-specific data for userOffers path
-        await set(allOfferRef, { ...currentOffer, ...offerData, userId: currentUser.uid, userDisplayName });
-        toast({ title: "Offer Updated", description: "Your offer has been successfully updated." });
-      } else { // Adding new offer
-        const newOfferRefUser = push(child(ref(db), `userOffers/${currentUser.uid}`));
-        const newOfferRefAll = ref(db, `allOffers/${newOfferRefUser.key}`);
+      if (currentNeed) { // Editing existing need
+        const userNeedRef = ref(db, `userNeeds/${currentUser.uid}/${currentNeed.id}`);
+        const allNeedRef = ref(db, `allNeeds/${currentNeed.id}`);
+        await set(userNeedRef, { ...currentNeed, ...needData, userId: undefined, userDisplayName: undefined }); // Remove user-specific data for userNeeds path
+        await set(allNeedRef, { ...currentNeed, ...needData, userId: currentUser.uid, userDisplayName });
+        toast({ title: "Need Updated", description: "Your need has been successfully updated." });
+      } else { // Adding new need
+        const newNeedRefUser = push(child(ref(db), `userNeeds/${currentUser.uid}`));
+        const newNeedRefAll = ref(db, `allNeeds/${newNeedRefUser.key}`);
         
-        const newOfferDataUser = { 
-          ...offerData, 
+        const newNeedDataUser = { 
+          ...needData, 
           createdAt: serverTimestamp(),
         };
-        const newOfferDataAll = { 
-          ...offerData, 
+        const newNeedDataAll = { 
+          ...needData, 
           createdAt: serverTimestamp(),
           userId: currentUser.uid,
           userDisplayName: userDisplayName
         };
 
-        await set(newOfferRefUser, newOfferDataUser);
-        await set(newOfferRefAll, newOfferDataAll);
-        toast({ title: "Offer Added", description: "Your new offer has been successfully added." });
+        await set(newNeedRefUser, newNeedDataUser);
+        await set(newNeedRefAll, newNeedDataAll);
+        toast({ title: "Need Added", description: "Your new need has been successfully added." });
       }
       handleDialogClose();
     } catch (error: any) {
-      console.error("Error saving offer:", error);
-      toast({ variant: "destructive", title: "Save Failed", description: error.message || "Could not save your offer." });
+      console.error("Error saving need:", error);
+      toast({ variant: "destructive", title: "Save Failed", description: error.message || "Could not save your need." });
     }
   }
 
-  const handleDeleteOffer = (offerId: string) => {
-    setOfferToDelete(offerId);
+  const handleDeleteNeed = (needId: string) => {
+    setNeedToDelete(needId);
     setIsDeleteDialogOpen(true);
   };
 
-  async function confirmDeleteOffer() {
-    if (!currentUser || !offerToDelete) return;
+  async function confirmDeleteNeed() {
+    if (!currentUser || !needToDelete) return;
     try {
-      const userOfferRef = ref(db, `userOffers/${currentUser.uid}/${offerToDelete}`);
-      const allOfferRef = ref(db, `allOffers/${offerToDelete}`);
-      await remove(userOfferRef);
-      await remove(allOfferRef);
-      toast({ title: "Offer Deleted", description: "The offer has been successfully deleted." });
+      const userNeedRef = ref(db, `userNeeds/${currentUser.uid}/${needToDelete}`);
+      const allNeedRef = ref(db, `allNeeds/${needToDelete}`);
+      await remove(userNeedRef);
+      await remove(allNeedRef);
+      toast({ title: "Need Deleted", description: "The need has been successfully deleted." });
     } catch (error: any) {
-      console.error("Error deleting offer:", error);
-      toast({ variant: "destructive", title: "Delete Failed", description: error.message || "Could not delete the offer." });
+      console.error("Error deleting need:", error);
+      toast({ variant: "destructive", title: "Delete Failed", description: error.message || "Could not delete the need." });
     } finally {
       setIsDeleteDialogOpen(false);
-      setOfferToDelete(null);
+      setNeedToDelete(null);
     }
   }
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-full"><p>Loading your offers...</p></div>;
+    return <div className="flex justify-center items-center h-full"><p>Loading your needs...</p></div>;
   }
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-foreground">My Offers</h1>
+        <h1 className="text-3xl font-bold text-foreground">My Needs</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => handleDialogOpen()}>
-              <PlusCircle className="mr-2 h-5 w-5" /> Add New Offer
+              <PlusCircle className="mr-2 h-5 w-5" /> Add New Need
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>{currentOffer ? "Edit Offer" : "Add New Offer"}</DialogTitle>
+              <DialogTitle>{currentNeed ? "Edit Need" : "Add New Need"}</DialogTitle>
               <DialogDescription>
-                {currentOffer ? "Update the details of your offer." : "Provide details for what you're offering."}
+                {currentNeed ? "Update the details of your need." : "Provide details for what you're looking for."}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmitOffer)} className="space-y-4 py-4">
+              <form onSubmit={form.handleSubmit(onSubmitNeed)} className="space-y-4 py-4">
                 <FormField
                   control={form.control}
                   name="title"
@@ -267,7 +263,7 @@ export default function MyOffersPage() {
                     <FormItem>
                       <FormLabel>Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Graphic Design Services, Vintage Lamp" {...field} />
+                        <Input placeholder="e.g., Web Design Help, Vintage Guitar, Cooking Lessons" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -303,7 +299,7 @@ export default function MyOffersPage() {
                       <FormLabel>Description</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Describe what you're offering in detail..."
+                          placeholder="Describe what you're looking for in detail..."
                           className="resize-none"
                           rows={5}
                           {...field}
@@ -317,7 +313,7 @@ export default function MyOffersPage() {
                   <DialogClose asChild>
                     <Button type="button" variant="outline" onClick={handleDialogClose}>Cancel</Button>
                   </DialogClose>
-                  <Button type="submit">{currentOffer ? "Save Changes" : "Add Offer"}</Button>
+                  <Button type="submit">{currentNeed ? "Save Changes" : "Add Need"}</Button>
                 </DialogFooter>
               </form>
             </Form>
@@ -325,40 +321,35 @@ export default function MyOffersPage() {
         </Dialog>
       </div>
 
-      {offers.length === 0 ? (
+      {needs.length === 0 ? (
         <Card className="text-center py-12">
           <CardHeader>
-            <PackageOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <CardTitle>No Offers Yet!</CardTitle>
-            <CardDescription>You haven't listed any offers. Click "Add New Offer" to share what you can provide.</CardDescription>
+            <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <CardTitle>No Needs Yet!</CardTitle>
+            <CardDescription>You haven't listed any needs. Click "Add New Need" to share what you're looking for.</CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {offers.map((offer) => (
-            <Card key={offer.id} className="flex flex-col">
+          {needs.map((need) => (
+            <Card key={need.id} className="flex flex-col">
               <CardHeader>
                 <CardTitle className="truncate flex items-center gap-2">
-                  <span>{offer.title}</span>
+                  <span>{need.title}</span>
                 </CardTitle>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Tag className="h-4 w-4" />
-                  <span>
-                    {offer.category 
-                      ? `${categoryIcons[offer.category]} ${offer.category}`
-                      : "📂 Uncategorized"
-                    }
-                  </span>
+                  <span>{categoryIcons[need.category]} {need.category}</span>
                 </div>
               </CardHeader>
               <CardContent className="flex-grow">
-                <p className="text-sm text-muted-foreground line-clamp-3">{offer.description}</p>
+                <p className="text-sm text-muted-foreground line-clamp-3">{need.description}</p>
               </CardContent>
               <CardFooter className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" size="sm" onClick={() => handleDialogOpen(offer)}>
+                <Button variant="outline" size="sm" onClick={() => handleDialogOpen(need)}>
                   <Edit className="mr-2 h-4 w-4" /> Edit
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDeleteOffer(offer.id)}>
+                <Button variant="destructive" size="sm" onClick={() => handleDeleteNeed(need.id)}>
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
                 </Button>
               </CardFooter>
@@ -372,12 +363,12 @@ export default function MyOffersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your offer.
+              This action cannot be undone. This will permanently delete your need.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteOffer}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDeleteNeed}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

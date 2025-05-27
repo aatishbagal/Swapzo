@@ -10,7 +10,7 @@ import { usePathname } from 'next/navigation';
 export function Header() {
   const pathname = usePathname();
 
-  if (pathname === '/auth' || pathname.startsWith('/dashboard')) {
+  if (pathname === '/auth' || pathname.startsWith('/dashboard') || pathname.startsWith('/profile')) {
     return null;
   }
 
