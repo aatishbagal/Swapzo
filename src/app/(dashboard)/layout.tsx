@@ -51,12 +51,12 @@ import type { SuggestSwapMatchesOutput } from '@/ai/flows/suggest-swap-matches';
 
 const sidebarNavItems = [
   { href: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
-  { href: "/dashboard/profile/edit", icon: UserCircle, label: "Profile" }, 
-  { href: "/dashboard/offers", icon: Gift, label: "My Offers" },
-  { href: "/dashboard/needs", icon: ListChecks, label: "My Needs" },
-  { href: "/dashboard/messages", icon: MessageSquare, label: "Messages" },
-  { href: "/dashboard/history", icon: History, label: "Swap History" },
-  { href: "/dashboard/settings", icon: Settings2, label: "Settings" },
+  { href: "/profile/edit", icon: UserCircle, label: "Profile" }, 
+  { href: "/offers", icon: Gift, label: "My Offers" },
+  { href: "/needs", icon: ListChecks, label: "My Needs" },
+  { href: "/messages", icon: MessageSquare, label: "Messages" },
+  { href: "/history", icon: History, label: "Swap History" },
+  { href: "/settings", icon: Settings2, label: "Settings" },
 ];
 
 
