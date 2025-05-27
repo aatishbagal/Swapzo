@@ -18,6 +18,24 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        '@opentelemetry/exporter-jaeger': false,
+      };
+    }
+    
+    // Ignore OpenTelemetry warnings
+    config.ignoreWarnings = [
+      /Module not found: Can't resolve '@opentelemetry\/exporter-jaeger'/,
+    ];
+    
+    return config;
+  },
+  experimental: {
+    serverComponentsExternalPackages: ['@opentelemetry/sdk-node']
+  }
 };
 
 export default nextConfig;
