@@ -142,7 +142,7 @@ export default function DashboardPage() {
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild onClick={() => console.log('Navigating to /dashboard/profile/edit from DropdownMenuItem')}>
-                <Link href="/dashboard/profile/edit">
+                <Link href="/profile/edit">
                   <Edit3 className="mr-2 h-4 w-4" />
                   <span>Edit Profile</span>
                 </Link>

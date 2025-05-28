@@ -9,7 +9,7 @@ import { usePathname } from 'next/navigation';
 
 export function AnimatedSplashScreen() {
   const pathname = usePathname();
-  const isDashboardRoute = pathname.startsWith('/dashboard');
+  const isDashboardRoute = pathname.startsWith('/profile') || pathname.startsWith('/needs') || pathname.startsWith('/offers');
 
   const [showComponent, setShowComponent] = useState(!isDashboardRoute);
   const [animationStep, setAnimationStep] = useState(0); 
