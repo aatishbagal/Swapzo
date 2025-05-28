@@ -1,7 +1,6 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
-import { getDatabase, Database } from "firebase/database"; // Import Realtime Database
+import { getAuth, GoogleAuthProvider, Auth, onAuthStateChanged, User } from "firebase/auth";
+import { getDatabase, Database, ref, set, get, serverTimestamp } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -23,6 +22,58 @@ if (!getApps().length) {
 
 const auth: Auth = getAuth(app);
 const googleProvider: GoogleAuthProvider = new GoogleAuthProvider();
-const db: Database = getDatabase(app); // Initialize Realtime Database
+const db: Database = getDatabase(app);
 
-export { app, auth, googleProvider, db };
+// Function to create or update user profile
+async function createOrUpdateUserProfile(user: User) {
+  try {
+    const userProfileRef = ref(db, `userProfiles/${user.uid}`);
+    
+    // Check if profile already exists
+    const snapshot = await get(userProfileRef);
+    
+    if (!snapshot.exists()) {
+      // Create new profile with default values
+      const newProfile = {
+        uid: user.uid,
+        displayName: user.displayName || user.email?.split('@')[0] || 'New Swapper',
+        email: user.email || '',
+        photoURL: user.photoURL || '',
+        trustScore: 50,
+        xp: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      
+      await set(userProfileRef, newProfile);
+      console.log('New user profile created:', user.uid);
+    } else {
+      // Update existing profile with fresh auth data
+      const existingProfile = snapshot.val();
+      const updatedProfile = {
+        ...existingProfile,
+        displayName: user.displayName || existingProfile.displayName,
+        email: user.email || existingProfile.email,
+        photoURL: user.photoURL || existingProfile.photoURL,
+        updatedAt: serverTimestamp(),
+      };
+      
+      await set(userProfileRef, updatedProfile);
+      console.log('User profile updated:', user.uid);
+    }
+  } catch (error) {
+    console.error('Error creating/updating user profile:', error);
+  }
+}
+
+// Set up auth state listener
+if (typeof window !== 'undefined') {
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      // User is signed in, create/update their profile
+      createOrUpdateUserProfile(user);
+    }
+  });
+}
+
+export { app, auth, googleProvider, db, createOrUpdateUserProfile };

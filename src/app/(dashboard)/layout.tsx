@@ -1,7 +1,7 @@
-
 "use client";
 
 import type React from 'react';
+import { useState, useEffect } from 'react';
 import { 
   SidebarProvider, 
   Sidebar, 
@@ -16,6 +16,16 @@ import {
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +38,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
 import { 
   LayoutGrid, 
   UserCircle, 
@@ -38,20 +49,22 @@ import {
   Settings2,
   Gem,
   LogOut,
-  Users, 
+  Users,
+  Bell,
+  Search,
+  PanelLeft,
+  Edit3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import { signOut, type User } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useEffect } from 'react';
-import { findSwapMatchesAction } from './actions'; // Import the Server Action
+import { findSwapMatchesAction } from './actions';
 import type { SuggestSwapMatchesOutput } from '@/ai/flows/suggest-swap-matches';
 
 const sidebarNavItems = [
   { href: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
-  { href: "/profile/edit", icon: UserCircle, label: "Profile" }, 
   { href: "/offers", icon: Gift, label: "My Offers" },
   { href: "/needs", icon: ListChecks, label: "My Needs" },
   { href: "/messages", icon: MessageSquare, label: "Messages" },
@@ -59,6 +72,88 @@ const sidebarNavItems = [
   { href: "/settings", icon: Settings2, label: "Settings" },
 ];
 
+function DashboardTopBar() {
+  const { toggleSidebar, isMobile } = useSidebar();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const userDisplayName = currentUser?.displayName?.split(' ')[0] || currentUser?.email?.split('@')[0] || "Swapper";
+  
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: "Signed Out", description: "You have been signed out successfully." });
+      router.push('/');
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Sign Out Failed", description: error.message });
+    }
+  };
+
+  return (
+    <header className="flex items-center justify-between p-4 border-b bg-background">
+      <div className="flex items-center gap-2">
+        {isMobile && (
+          <Button variant="ghost" size="icon" onClick={toggleSidebar} aria-label="Toggle sidebar">
+            <PanelLeft />
+          </Button>
+        )}
+        <h1 className="text-2xl font-semibold">
+          Hi, <span className="text-primary">{userDisplayName}</span>!
+        </h1>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input type="search" placeholder="Search swaps, users..." className="pl-10 pr-4 py-2 h-10 w-full md:w-64 rounded-full bg-secondary" />
+        </div>
+        <Button variant="ghost" size="icon" className="rounded-full">
+          <Bell className="h-6 w-6" />
+          <span className="sr-only">Notifications</span>
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 cursor-pointer">
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "User"} />
+                <AvatarFallback>
+                  {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : <UserCircle />}
+                </AvatarFallback>
+              </Avatar>
+             </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href={`/profile/${currentUser?.uid}`}>
+                <UserCircle className="mr-2 h-4 w-4" />
+                <span>View Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/profile/edit">
+                <Edit3 className="mr-2 h-4 w-4" />
+                <span>Edit Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sign Out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
+  );
+}
 
 function DashboardSidebarContent() {
   const pathname = usePathname();
@@ -112,6 +207,12 @@ function DashboardSidebarContent() {
     setIsFindingMatches(false);
   };
 
+  const handleProfileClick = () => {
+    if (currentUser?.uid) {
+      router.push(`/profile/${currentUser.uid}`);
+    }
+  };
+
   return (
     <>
       <SidebarHeader className="p-4">
@@ -138,6 +239,19 @@ function DashboardSidebarContent() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
+          
+          {/* Profile button with dynamic user ID */}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={handleProfileClick}
+              isActive={pathname.startsWith('/profile/')}
+              tooltip="Profile"
+              className="cursor-pointer"
+            >
+              <UserCircle />
+              <span>Profile</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-4 border-t border-sidebar-border">
@@ -193,6 +307,13 @@ function DashboardSidebarContent() {
                             <p className="text-sm text-muted-foreground">No chain matches found.</p>
                           )}
                         </div>
+                        {(matchResults.directMatches.length > 0 || matchResults.chainMatches.length > 0) && (
+                          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                            <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                              📝 <strong>Note:</strong> Profile viewing for matched swappers is currently under development. Contact information and detailed profiles will be available soon.
+                            </p>
+                          </div>
+                        )}
                       </>
                     )}
                      {!isFindingMatches && !matchError && !matchResults && (
@@ -241,7 +362,6 @@ function DashboardSidebarContent() {
   );
 }
 
-
 export default function DashboardLayout({
   children,
 }: {
@@ -253,7 +373,12 @@ export default function DashboardLayout({
         <DashboardSidebarContent />
       </Sidebar>
       <SidebarInset>
-        {children}
+        <div className="flex flex-col h-full">
+          <DashboardTopBar />
+          <main className="flex-1 overflow-y-auto">
+            {children}
+          </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );
