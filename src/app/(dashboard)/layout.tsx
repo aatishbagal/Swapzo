@@ -307,6 +307,13 @@ function DashboardSidebarContent() {
                             <p className="text-sm text-muted-foreground">No chain matches found.</p>
                           )}
                         </div>
+                        {(matchResults.directMatches.length > 0 || matchResults.chainMatches.length > 0) && (
+                          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                            <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                              📝 <strong>Note:</strong> Profile viewing for matched swappers is currently under development. Contact information and detailed profiles will be available soon.
+                            </p>
+                          </div>
+                        )}
                       </>
                     )}
                      {!isFindingMatches && !matchError && !matchResults && (
