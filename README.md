@@ -44,7 +44,3 @@ Swapzo enables peer-to-peer exchanges based on mutual needs. Whether you're offe
 ## 🚧 Status
 
 Currently under active development.
-
----
-
-### Developed for **DevNetwork [AI + ML] Hackathon 2025** on **DevPost**
