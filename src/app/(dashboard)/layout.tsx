@@ -57,11 +57,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from 'next/navigation';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { signOut, type User } from 'firebase/auth';
+import { ref, get } from 'firebase/database';
 import { useToast } from '@/hooks/use-toast';
 import { findSwapMatchesAction } from './actions';
 import type { SuggestSwapMatchesOutput } from '@/ai/flows/suggest-swap-matches';
+import { UsernameSetupDialog } from '@/components/username-setup-dialog';
 
 const sidebarNavItems = [
   { href: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
@@ -72,15 +74,43 @@ const sidebarNavItems = [
   { href: "/settings", icon: Settings2, label: "Settings" },
 ];
 
+interface UserProfile {
+  uid: string;
+  displayName: string;
+  username: string;
+  email: string;
+  photoURL?: string;
+  trustScore: number;
+  xp: number;
+}
+
 function DashboardTopBar() {
   const { toggleSidebar, isMobile } = useSidebar();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [needsUsernameSetup, setNeedsUsernameSetup] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setCurrentUser(user);
+      if (user) {
+        // Fetch user profile to get username
+        const userProfileRef = ref(db, `userProfiles/${user.uid}`);
+        const snapshot = await get(userProfileRef);
+        const profileData = snapshot.val();
+        if (profileData) {
+          setUserProfile(profileData);
+          setNeedsUsernameSetup(false);
+        } else {
+          // New user without profile, needs username setup
+          setNeedsUsernameSetup(true);
+        }
+      } else {
+        setUserProfile(null);
+        setNeedsUsernameSetup(false);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -94,6 +124,25 @@ function DashboardTopBar() {
       router.push('/');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Sign Out Failed", description: error.message });
+    }
+  };
+
+  const handleUsernameCreated = async (username: string) => {
+    setNeedsUsernameSetup(false);
+    // Refresh user profile
+    if (currentUser) {
+      const userProfileRef = ref(db, `userProfiles/${currentUser.uid}`);
+      const snapshot = await get(userProfileRef);
+      const profileData = snapshot.val();
+      if (profileData) {
+        setUserProfile(profileData);
+      }
+    }
+  };
+
+  const handleProfileClick = () => {
+    if (userProfile?.username) {
+      router.push(`/profile/${userProfile.username}`);
     }
   };
 
@@ -132,11 +181,9 @@ function DashboardTopBar() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href={`/profile/${currentUser?.uid}`}>
-                <UserCircle className="mr-2 h-4 w-4" />
-                <span>View Profile</span>
-              </Link>
+            <DropdownMenuItem onClick={handleProfileClick} className="cursor-pointer">
+              <UserCircle className="mr-2 h-4 w-4" />
+              <span>View Profile</span>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/profile/edit">
@@ -161,13 +208,25 @@ function DashboardSidebarContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isMatchDialogOpen, setIsMatchDialogOpen] = useState(false);
   const [matchResults, setMatchResults] = useState<SuggestSwapMatchesOutput | null>(null);
   const [matchError, setMatchError] = useState<string | null>(null);
   const [isFindingMatches, setIsFindingMatches] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(setCurrentUser);
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        // Fetch user profile to get username
+        const userProfileRef = ref(db, `userProfiles/${user.uid}`);
+        const snapshot = await get(userProfileRef);
+        const profileData = snapshot.val();
+        if (profileData) {
+          setUserProfile(profileData);
+        }
+      }
+    });
     return () => unsubscribe();
   }, []);
 
@@ -208,8 +267,8 @@ function DashboardSidebarContent() {
   };
 
   const handleProfileClick = () => {
-    if (currentUser?.uid) {
-      router.push(`/profile/${currentUser.uid}`);
+    if (userProfile?.username) {
+      router.push(`/profile/${userProfile.username}`);
     }
   };
 
@@ -240,7 +299,7 @@ function DashboardSidebarContent() {
             </SidebarMenuItem>
           ))}
           
-          {/* Profile button with dynamic user ID */}
+          {/* Profile button with dynamic username */}
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleProfileClick}
@@ -349,7 +408,6 @@ function DashboardSidebarContent() {
           </AlertDialog>
            <SidebarMenuButton
             onClick={handleSignOut}
-            variant="ghost"
             className={cn("w-full justify-start", sidebarState === "collapsed" && "w-auto justify-center")}
             tooltip="Sign Out"
           >
@@ -367,8 +425,42 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [needsUsernameSetup, setNeedsUsernameSetup] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        // Check if user needs username setup
+        const userProfileRef = ref(db, `userProfiles/${user.uid}`);
+        const snapshot = await get(userProfileRef);
+        const profileData = snapshot.val();
+        
+        if (!profileData || !profileData.username) {
+          setNeedsUsernameSetup(true);
+        } else {
+          setNeedsUsernameSetup(false);
+        }
+      } else {
+        setNeedsUsernameSetup(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleUsernameCreated = (username: string) => {
+    setNeedsUsernameSetup(false);
+  };
+
   return (
     <SidebarProvider defaultOpen>
+      {needsUsernameSetup && currentUser && (
+        <UsernameSetupDialog 
+          user={currentUser} 
+          onUsernameCreated={handleUsernameCreated}
+        />
+      )}
       <Sidebar collapsible="icon">
         <DashboardSidebarContent />
       </Sidebar>

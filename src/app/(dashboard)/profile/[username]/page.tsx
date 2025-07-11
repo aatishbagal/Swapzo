@@ -35,10 +35,17 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Search } from "lucide-react";
+import { Search, Edit, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { 
+  getUserIdFromUsername, 
+  validateUsername, 
+  canChangeUsername, 
+  getUsernameChangeCooldownDays,
+  reserveUsername,
+  unreserveUsername
+} from "@/lib/username-utils";
 
-// Assuming these types are defined in a shared types file
 interface Offer {
   id: string;
   title: string;
@@ -62,9 +69,11 @@ interface Need {
 interface UserProfile {
   uid: string;
   displayName: string;
+  username: string;
   photoURL?: string;
   trustScore: number;
   xp: number;
+  lastUsernameChange: number | null;
   createdAt: string | number;
 }
 
@@ -75,24 +84,44 @@ const profileFormSchema = z.object({
     .max(50, { message: "Display name must not be longer than 50 characters." }),
 });
 
+const usernameFormSchema = z.object({
+  username: z
+    .string()
+    .min(3, { message: "Username must be at least 3 characters." })
+    .max(20, { message: "Username must not be longer than 20 characters." })
+    .regex(/^[a-zA-Z0-9_]+$/, { message: "Username can only contain letters, numbers, and underscores." }),
+});
+
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
+type UsernameFormValues = z.infer<typeof usernameFormSchema>;
 
 export default function UserProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
-  const userId = params.userId as string;
+  const username = params.username as string;
+  
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [needs, setNeeds] = useState<Need[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUsernameDialogOpen, setIsUsernameDialogOpen] = useState(false);
+  const [usernameValidationMessage, setUsernameValidationMessage] = useState("");
+  const [isValidatingUsername, setIsValidatingUsername] = useState(false);
 
-  const form = useForm<ProfileFormValues>({
+  const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       displayName: "",
+    },
+  });
+
+  const usernameForm = useForm<UsernameFormValues>({
+    resolver: zodResolver(usernameFormSchema),
+    defaultValues: {
+      username: "",
     },
   });
 
@@ -111,14 +140,27 @@ export default function UserProfilePage() {
       fetchProfileData();
     });
     return () => unsubscribe();
-  }, [userId, router, toast]);
+  }, [username, router, toast]);
 
   async function fetchProfileData() {
     try {
+      // Get user ID from username
+      const userId = await getUserIdFromUsername(username);
+      if (!userId) {
+        toast({
+          variant: "destructive",
+          title: "Profile Not Found",
+          description: "This user profile does not exist.",
+        });
+        router.push("/dashboard");
+        return;
+      }
+
       // Fetch user profile
       const profileRef = ref(db, `userProfiles/${userId}`);
       const profileSnapshot = await get(profileRef);
       const profileData = profileSnapshot.val();
+      
       if (!profileData) {
         toast({
           variant: "destructive",
@@ -128,10 +170,12 @@ export default function UserProfilePage() {
         router.push("/dashboard");
         return;
       }
+      
       setProfile(profileData);
 
-      // Set form default values for edit profile
-      form.reset({ displayName: profileData.displayName || "" });
+      // Set form default values
+      profileForm.reset({ displayName: profileData.displayName || "" });
+      usernameForm.reset({ username: profileData.username || "" });
 
       // Fetch offers
       const offersRef = ref(db, `userOffers/${userId}`);
@@ -168,14 +212,7 @@ export default function UserProfilePage() {
   }
 
   async function handleEditProfile(data: ProfileFormValues) {
-    if (!currentUser) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No user is signed in.",
-      });
-      return;
-    }
+    if (!currentUser || !profile) return;
 
     try {
       // Update Firebase Auth display name
@@ -185,24 +222,14 @@ export default function UserProfilePage() {
 
       // Update user profile in Realtime Database
       const userProfileRef = ref(db, `userProfiles/${currentUser.uid}`);
-      const snapshot = await get(userProfileRef);
-      const existingProfileData = snapshot.val();
-
-      const profileDataToSet = {
-        uid: currentUser.uid,
+      const updatedProfile = {
+        ...profile,
         displayName: data.displayName,
-        email: currentUser.email,
-        photoURL: existingProfileData?.photoURL || null,
-        xp: existingProfileData?.xp || 0,
-        trustScore: existingProfileData?.trustScore || 50,
-        createdAt: existingProfileData?.createdAt || serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      await set(userProfileRef, profileDataToSet);
-
-      // Update local profile state
-      setProfile(profileDataToSet);
+      await set(userProfileRef, updatedProfile);
+      setProfile(updatedProfile);
 
       toast({
         title: "Profile Updated",
@@ -210,7 +237,7 @@ export default function UserProfilePage() {
       });
       setIsEditDialogOpen(false);
     } catch (error: any) {
-      console.error("Error updating profile: ", error);
+      console.error("Error updating profile:", error);
       toast({
         variant: "destructive",
         title: "Update Failed",
@@ -219,8 +246,78 @@ export default function UserProfilePage() {
     }
   }
 
+  async function validateUsernameOnChange(newUsername: string) {
+    if (!newUsername || newUsername === profile?.username) {
+      setUsernameValidationMessage("");
+      return;
+    }
+
+    setIsValidatingUsername(true);
+    const result = await validateUsername(newUsername, currentUser?.uid);
+    setUsernameValidationMessage(result.message);
+    setIsValidatingUsername(false);
+  }
+
+  async function handleUsernameChange(data: UsernameFormValues) {
+    if (!currentUser || !profile) return;
+
+    const newUsername = data.username.toLowerCase();
+    
+    // Check if username is the same
+    if (newUsername === profile.username) {
+      setIsUsernameDialogOpen(false);
+      return;
+    }
+
+    // Validate username
+    const validation = await validateUsername(newUsername, currentUser.uid);
+    if (!validation.isValid) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Username",
+        description: validation.message,
+      });
+      return;
+    }
+
+    try {
+      // Unreserve old username
+      await unreserveUsername(profile.username);
+      
+      // Reserve new username
+      await reserveUsername(newUsername, currentUser.uid);
+
+      // Update user profile
+      const userProfileRef = ref(db, `userProfiles/${currentUser.uid}`);
+      const updatedProfile = {
+        ...profile,
+        username: newUsername,
+        lastUsernameChange: Date.now(),
+        updatedAt: serverTimestamp(),
+      };
+
+      await set(userProfileRef, updatedProfile);
+      
+      toast({
+        title: "Username Updated",
+        description: "Your username has been successfully updated.",
+      });
+      
+      setIsUsernameDialogOpen(false);
+      
+      // Redirect to new username URL
+      router.push(`/profile/${newUsername}`);
+    } catch (error: any) {
+      console.error("Error updating username:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: error.message || "Could not update your username.",
+      });
+    }
+  }
+
   const handleSwapRequest = (item: Offer | Need) => {
-    // Placeholder for swap request functionality
     toast({
       title: "Coming Soon",
       description: "Swap request functionality will be implemented soon.",
@@ -243,7 +340,9 @@ export default function UserProfilePage() {
     );
   }
 
-  const isOwnProfile = currentUser?.uid === userId;
+  const isOwnProfile = currentUser?.uid === profile.uid;
+  const canEditUsername = canChangeUsername(profile.lastUsernameChange);
+  const cooldownDays = getUsernameChangeCooldownDays(profile.lastUsernameChange);
 
   return (
     <div className="container mx-auto py-10">
@@ -264,7 +363,10 @@ export default function UserProfilePage() {
               )}
             </div>
             <div>
-              <CardTitle>{profile.displayName}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                {profile.displayName}
+                <span className="text-sm text-muted-foreground">@{profile.username}</span>
+              </CardTitle>
               <CardDescription>
                 Joined {format(new Date(profile.createdAt), "MMMM yyyy")}
               </CardDescription>
@@ -278,49 +380,134 @@ export default function UserProfilePage() {
               XP: {profile.xp}
             </span>
             {isOwnProfile && (
-              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">Edit Profile</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Edit Profile</DialogTitle>
-                    <DialogDescription>
-                      Update your account information.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <Form {...form}>
-                    <form
-                      onSubmit={form.handleSubmit(handleEditProfile)}
-                      className="space-y-4"
+              <div className="flex gap-2">
+                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit Profile</DialogTitle>
+                      <DialogDescription>
+                        Update your account information.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <Form {...profileForm}>
+                      <form
+                        onSubmit={profileForm.handleSubmit(handleEditProfile)}
+                        className="space-y-4"
+                      >
+                        <FormField
+                          control={profileForm.control}
+                          name="displayName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Display Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Your Name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <DialogFooter>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsEditDialogOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button type="submit">Save Changes</Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={isUsernameDialogOpen} onOpenChange={setIsUsernameDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      disabled={!canEditUsername}
                     >
-                      <FormField
-                        control={form.control}
-                        name="displayName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Display Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Your Name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <DialogFooter>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setIsEditDialogOpen(false)}
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Username
+                      {!canEditUsername && (
+                        <Clock className="h-4 w-4 ml-2" />
+                      )}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit Username</DialogTitle>
+                      <DialogDescription>
+                        {canEditUsername 
+                          ? "You can change your username. Note that you'll need to wait 60 days before changing it again."
+                          : `You can change your username again in ${cooldownDays} days.`
+                        }
+                      </DialogDescription>
+                    </DialogHeader>
+                    {canEditUsername && (
+                      <Form {...usernameForm}>
+                        <form
+                          onSubmit={usernameForm.handleSubmit(handleUsernameChange)}
+                          className="space-y-4"
                         >
-                          Cancel
-                        </Button>
-                        <Button type="submit">Save Changes</Button>
-                      </DialogFooter>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
+                          <FormField
+                            control={usernameForm.control}
+                            name="username"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Username</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="your_username" 
+                                    {...field} 
+                                    onChange={(e) => {
+                                      field.onChange(e);
+                                      validateUsernameOnChange(e.target.value);
+                                    }}
+                                  />
+                                </FormControl>
+                                {isValidatingUsername && (
+                                  <p className="text-sm text-muted-foreground">
+                                    Checking availability...
+                                  </p>
+                                )}
+                                {usernameValidationMessage && (
+                                  <p className={`text-sm ${
+                                    usernameValidationMessage.includes("available") 
+                                      ? "text-green-600" 
+                                      : "text-red-600"
+                                  }`}>
+                                    {usernameValidationMessage}
+                                  </p>
+                                )}
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <DialogFooter>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setIsUsernameDialogOpen(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button type="submit">Update Username</Button>
+                          </DialogFooter>
+                        </form>
+                      </Form>
+                    )}
+                  </DialogContent>
+                </Dialog>
+              </div>
             )}
           </div>
         </CardHeader>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -10,13 +9,20 @@ import { usePathname } from 'next/navigation';
 export function Header() {
   const pathname = usePathname();
 
-  if (pathname === '/auth' || pathname.startsWith('/dashboard') || pathname.startsWith('/profile') || pathname.startsWith('/offers') || pathname.startsWith('/needs')) {
+  if (pathname === '/auth' || 
+      pathname.startsWith('/dashboard') || 
+      pathname.startsWith('/profile') || 
+      pathname.startsWith('/offers') || 
+      pathname.startsWith('/needs') ||
+      pathname.startsWith('/messages') ||
+      pathname.startsWith('/history') ||
+      pathname.startsWith('/settings')) {
     return null;
   }
 
   return (
-    <header className="fixed top-0 z-50 w-full"> {/* Changed sticky to fixed, removed py-3 */}
-      <div className="container mx-auto flex max-w-screen-lg items-center justify-between gap-2 rounded-full bg-card/80 px-4 py-2 shadow-lg backdrop-blur-md mt-3"> {/* Added mt-3 for spacing from top */}
+    <header className="fixed top-0 z-50 w-full">
+      <div className="container mx-auto flex max-w-screen-lg items-center justify-between gap-2 rounded-full bg-card/80 px-4 py-2 shadow-lg backdrop-blur-md mt-3">
         {/* Left: Logo */}
         <div>
           <Logo />
