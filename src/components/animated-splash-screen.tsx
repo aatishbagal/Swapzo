@@ -81,10 +81,7 @@ export function AnimatedSplashScreen() {
   );
   
   return (
-    <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center" // No background here
-      aria-hidden={animationStep !== 2 && animationStep !== 1}
-    >
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center" aria-hidden={animationStep !== 2 && animationStep !== 1}>
       <div className={slidingLayerClasses} />
       <Image
         src="/assets/Swapzo-logo_V1.png" // Use public path

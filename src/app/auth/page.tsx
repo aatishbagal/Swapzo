@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { sendVerificationEmail } from "@/lib/firebase";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -94,26 +95,56 @@ export default function AuthPage() {
 
   const onSignInSubmit = async (data: SignInFormValues) => {
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      const user = userCredential.user;
+  
+      if (!user.emailVerified) {
+        toast({
+          variant: "destructive",
+          title: "Email Not Verified",
+          description: "Please verify your email before logging in.",
+        });
+        return;
+      }
+  
       toast({ title: "Success!", description: "Signed in successfully." });
-      router.push('/dashboard');
+      router.push("/dashboard");
     } catch (error: any) {
       console.error("Email Sign-In Error:", error);
-      toast({ variant: "destructive", title: "Email Sign-In Failed", description: error.message || "An unexpected error occurred." });
+      toast({
+        variant: "destructive",
+        title: "Email Sign-In Failed",
+        description: error.message || "An unexpected error occurred.",
+      });
     }
   };
 
-  const onSignUpSubmit = async (data: SignUpFormValues) => {
-    try {
-      await createUserWithEmailAndPassword(auth, data.email, data.password);
-      toast({ title: "Success!", description: "Account created successfully. Please sign in." });
-      router.push('/dashboard'); 
-    } catch (error: any)
-{
-      console.error("Email Sign-Up Error:", error);
-      toast({ variant: "destructive", title: "Email Sign-Up Failed", description: error.message || "An unexpected error occurred." });
-    }
-  };
+
+const onSignUpSubmit = async (data: SignUpFormValues) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+    const user = userCredential.user;
+
+    // ✅ Send verification email
+    await sendVerificationEmail(user);
+
+    toast({
+      title: "Account created!",
+      description: "Verification email sent. Please check your inbox before logging in.",
+    });
+
+    // ✅ Do NOT auto redirect to dashboard unless email is verified
+    // router.push("/dashboard");
+  } catch (error: any) {
+    console.error("Email Sign-Up Error:", error);
+    toast({
+      variant: "destructive",
+      title: "Email Sign-Up Failed",
+      description: error.message || "An unexpected error occurred.",
+    });
+  }
+};
+
 
   return (
     <div className="flex min-h-[calc(100vh-var(--header-height,0px)-var(--footer-height,0px))] items-center justify-center bg-background p-4 md:p-6">

@@ -68,64 +68,44 @@ export default function Home() {
   ];
 
   return (
-    // Added -mt-[4.5rem] to pull this content up behind the header
     <div className="flex flex-col items-center -mt-[4.5rem]">
-      {/* First static section visible after animated splash */}
       <section
-        id="splash-screen"
-        className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden" 
-      >
-        {/* Gradient Background Div */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-accent/30 dark:from-primary/20 dark:via-background dark:to-accent/20 -z-10" />
-        {/* Logo */}
-        <Image
-          src="/assets/Swapzo-logo_V1.png"
-          alt="SwapZo Logo"
-          width={160}
-          height={160}
-          priority
-          className="h-32 w-32 md:h-40 md:w-40" // Adjusted size for prominence
-          data-ai-hint="logo brand"
-        />
-        {/* Scroll Down Arrow */}
-        <div className="absolute bottom-10 animate-bounce">
-          <ArrowDown className="h-8 w-8 text-primary" />
-        </div>
-      </section>
-      
-      {/* Main Hero Content Section */}
-      <section 
-        id="hero-content" 
-        className="min-h-screen w-full pt-24 pb-12 md:pt-32 md:pb-16 bg-gradient-to-br dark:from-purple-900 dark:via-slate-800 dark:to-accent dark:bg-secondary flex flex-col items-center justify-center"
-      > 
-         <div className="container mx-auto px-4 md:px-6 text-center">
-          <div className="mx-auto max-w-3xl space-y-6">
-             <Image
-              src="/assets/Swapzo-logo_V1.png" 
-              alt="SwapZo Logo"
-              width={120} 
-              height={120}
-              className="mb-6 mx-auto"
-              priority 
-              data-ai-hint="logo brand"
-            />
-            <p className="text-lg text-foreground/80 md:text-xl lg:text-2xl">
-              Exchange What You Have. Discover What You Need.
-            </p>
-            <p className="text-md text-muted-foreground md:text-lg">
-              A global platform for direct peer-to-peer exchange of skills, services, and goods—no money, just mutual value. Join the circular economy revolution!
-            </p>
-            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-              <Button size="lg" asChild className="shadow-lg hover:shadow-xl transition-shadow" id="cta-main-hero">
-                <Link href="/auth">Get Started Now</Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="shadow-lg hover:shadow-xl transition-shadow">
-                <Link href="#how-it-works">Learn More</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+  id="splash-screen"
+  className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden"
+>
+  {/* Background Gradient Layer */}
+  <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-accent/30 dark:from-primary/20 dark:via-background dark:to-accent/20 -z-10" />
+
+  {/* Centered Foreground Content */}
+  <div className="container mx-auto px-4 md:px-6 text-center z-10">
+    <div className="mx-auto max-w-3xl space-y-8">
+      <Image
+        src="/assets/Swapzo-logo_V1.png"
+        alt="SwapZo Logo"
+        width={120}
+        height={120}
+        className="mb-6 mx-auto"
+        priority
+        data-ai-hint="logo brand"
+      />
+      <p className="text-lg text-foreground/80 md:text-xl lg:text-2xl">
+        <b>Exchange What You Have. Discover What You Need.</b>
+      </p>
+      <p className="text-md text-muted-foreground md:text-lg">
+        A global platform for direct peer-to-peer exchange of skills, services, and goods—no money, just mutual value. Join the circular economy revolution!
+      </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
+        <Button size="lg" asChild className="shadow-lg hover:shadow-xl transition-shadow" id="cta-main-hero">
+          <Link href="/auth">Get Started Now</Link>
+        </Button>
+        <Button size="lg" variant="outline" asChild className="shadow-lg hover:shadow-xl transition-shadow">
+          <Link href="#how-it-works">Learn More</Link>
+        </Button>
+      </div>
+    </div>
+  </div>
+</section>
+
 
       {/* How It Works Section */}
       <section id="how-it-works" className="w-full py-16 md:py-24 bg-background">

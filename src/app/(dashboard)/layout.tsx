@@ -112,7 +112,7 @@ function DashboardTopBar() {
       <div className="flex items-center gap-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input type="search" placeholder="Search swaps, users..." className="pl-10 pr-4 py-2 h-10 w-full md:w-64 rounded-full bg-secondary" />
+          <Input type="search" placeholder="Search users..." className="pl-10 pr-4 py-2 h-10 w-full md:w-64 rounded-full bg-secondary" />
         </div>
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-6 w-6" />

@@ -58,10 +58,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      setCurrentUser(user);
+      if (!user || !user.emailVerified) {
+        router.push("/auth");
+      } else {
+        setCurrentUser(user);
+      }
     });
     return () => unsubscribe();
   }, []);
+  
   
   useEffect(() => {
     // Simulate profile completion calculation

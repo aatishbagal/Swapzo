@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, Auth, onAuthStateChanged, User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, Auth,sendEmailVerification, onAuthStateChanged, User } from "firebase/auth";
 import { getDatabase, Database, ref, set, get, serverTimestamp } from "firebase/database";
+
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -66,6 +67,13 @@ async function createOrUpdateUserProfile(user: User) {
   }
 }
 
+// ✅ Add this function
+async function sendVerificationEmail(user: User) {
+  if (user && !user.emailVerified) {
+    await sendEmailVerification(user);
+  }
+}
+
 // Set up auth state listener
 if (typeof window !== 'undefined') {
   onAuthStateChanged(auth, (user) => {
@@ -76,4 +84,4 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export { app, auth, googleProvider, db, createOrUpdateUserProfile };
+export { app, auth, googleProvider, sendVerificationEmail, db, createOrUpdateUserProfile };
