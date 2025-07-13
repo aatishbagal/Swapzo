@@ -1,0 +1,83 @@
+src/
+├── ai/
+│   ├── dev.ts
+│   ├── genkit.ts
+│   └── flows/
+│       ├── suggest-swap-matches.ts
+│       └── summarize-swap-listing.ts
+├── app/
+│   ├── (dashboard)/
+│   │   ├── actions.ts
+│   │   ├── layout.tsx
+│   │   ├── dashboard/
+│   │   │   └── page.tsx
+│   │   ├── needs/
+│   │   │   └── page.tsx
+│   │   ├── offers/
+│   │   │   └── page.tsx
+│   │   └── profile/
+│   │       ├── [username]/
+│   │       │   └── page.tsx
+│   │       └── edit/
+│   │           └── page.tsx
+│   ├── auth/
+│   │   └── page.tsx
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── layout.tsx
+│   ├── not-found.tsx
+│   └── page.tsx
+├── components/
+│   ├── layout/
+│   │   ├── bottom-navbar.tsx
+│   │   ├── footer.tsx
+│   │   ├── header.tsx
+│   │   └── main-content-wrapper.tsx
+│   ├── ui/
+│   │   ├── accordion.tsx
+│   │   ├── alert-dialog.tsx
+│   │   ├── alert.tsx
+│   │   ├── avatar.tsx
+│   │   ├── badge.tsx
+│   │   ├── button.tsx
+│   │   ├── calendar.tsx
+│   │   ├── card.tsx
+│   │   ├── chart.tsx
+│   │   ├── checkbox.tsx
+│   │   ├── dialog.tsx
+│   │   ├── dropdown-menu.tsx
+│   │   ├── form.tsx
+│   │   ├── input.tsx
+│   │   ├── label.tsx
+│   │   ├── menubar.tsx
+│   │   ├── popover.tsx
+│   │   ├── progress.tsx
+│   │   ├── radio-group.tsx
+│   │   ├── scroll-area.tsx
+│   │   ├── select.tsx
+│   │   ├── separator.tsx
+│   │   ├── sheet.tsx
+│   │   ├── sidebar.tsx
+│   │   ├── skeleton.tsx
+│   │   ├── slider.tsx
+│   │   ├── switch.tsx
+│   │   ├── table.tsx
+│   │   ├── tabs.tsx
+│   │   ├── textarea.tsx
+│   │   ├── toast.tsx
+│   │   ├── toaster.tsx
+│   │   └── tooltip.tsx
+│   ├── animated-splash-screen.tsx
+│   ├── lenis-scroll.tsx
+│   ├── logo.tsx
+│   ├── mode-toggle.tsx
+│   ├── theme-provider.tsx
+│   └── username-setup-dialog.tsx
+├── hooks/
+│   ├── use-mobile.tsx
+│   └── use-toast.ts
+└── lib/
+    ├── firebase.ts
+    ├── mongodb.ts
+    ├── username-utils.ts
+    └── utils.ts
