@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, Auth,sendEmailVerification, onAuthStateChanged, User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, Auth,sendEmailVerification, onAuthStateChanged,sendPasswordResetEmail, User } from "firebase/auth";
 import { getDatabase, Database, ref, set, get, serverTimestamp } from "firebase/database";
 
 
@@ -24,6 +24,15 @@ if (!getApps().length) {
 const auth: Auth = getAuth(app);
 const googleProvider: GoogleAuthProvider = new GoogleAuthProvider();
 const db: Database = getDatabase(app);
+
+async function sendResetEmail(email: string) {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+}
 
 // Function to create or update user profile
 async function createOrUpdateUserProfile(user: User) {
@@ -84,4 +93,4 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export { app, auth, googleProvider, sendVerificationEmail, db, createOrUpdateUserProfile };
+export { app, auth, googleProvider, sendResetEmail, sendVerificationEmail, db, createOrUpdateUserProfile };
