@@ -1,10 +1,19 @@
-
 'use server'; // Ensures all functions in this file are Server Actions
 
-import { ref, get, child } from "firebase/database";
+import { ref, get, child, query, orderByChild, limitToFirst } from "firebase/database";
 import { db } from '@/lib/firebase'; 
 import { suggestSwapMatches, type SuggestSwapMatchesInput, type SuggestSwapMatchesOutput } from '@/ai/flows/suggest-swap-matches';
 import type { User } from 'firebase/auth';
+
+// Interface for search results
+export interface UserSearchResult {
+  uid: string;
+  username: string;
+  displayName: string;
+  photoURL?: string;
+  trustScore: number;
+  xp: number;
+}
 
 // Helper to get display name, ensure it's also a server-side utility or pass display name if needed
 async function getUserDisplayName(userId: string): Promise<string> {
@@ -13,6 +22,63 @@ async function getUserDisplayName(userId: string): Promise<string> {
     return snapshot.val() || "Anonymous Swapper";
 }
 
+export async function searchUsersAction(searchQuery: string, currentUserId?: string): Promise<UserSearchResult[]> {
+  if (!searchQuery || searchQuery.trim().length < 2) {
+    return [];
+  }
+
+  try {
+    const normalizedQuery = searchQuery.toLowerCase().trim();
+    const userProfilesRef = ref(db, 'userProfiles');
+    const snapshot = await get(userProfilesRef);
+    const usersData = snapshot.val() || {};
+    
+    const searchResults: UserSearchResult[] = [];
+    const maxResults = 10;
+
+    // Search through all user profiles
+    Object.entries(usersData).forEach(([uid, userData]: [string, any]) => {
+      // Skip current user from results
+      if (uid === currentUserId) return;
+      
+      // Skip users without username (shouldn't happen but safety check)
+      if (!userData.username) return;
+
+      const username = userData.username.toLowerCase();
+      const displayName = userData.displayName?.toLowerCase() || '';
+      
+      // Check if query matches username or display name
+      const matchesUsername = username.includes(normalizedQuery);
+      const matchesDisplayName = displayName.includes(normalizedQuery);
+      const exactUsernameMatch = username === normalizedQuery;
+      const exactDisplayNameMatch = displayName === normalizedQuery;
+
+      if (matchesUsername || matchesDisplayName) {
+        const result: UserSearchResult = {
+          uid,
+          username: userData.username,
+          displayName: userData.displayName || 'Anonymous Swapper',
+          photoURL: userData.photoURL || undefined,
+          trustScore: userData.trustScore || 50,
+          xp: userData.xp || 0,
+        };
+
+        // Prioritize exact matches
+        if (exactUsernameMatch || exactDisplayNameMatch) {
+          searchResults.unshift(result);
+        } else {
+          searchResults.push(result);
+        }
+      }
+    });
+
+    // Return limited results, prioritizing exact matches
+    return searchResults.slice(0, maxResults);
+  } catch (error) {
+    console.error('Error searching users:', error);
+    return [];
+  }
+}
 
 export async function findSwapMatchesAction(userId: string): Promise<SuggestSwapMatchesOutput | { error: string }> {
   if (!userId) {

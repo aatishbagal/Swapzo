@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -51,7 +50,6 @@ import {
   LogOut,
   Users,
   Bell,
-  Search,
   PanelLeft,
   Edit3,
 } from "lucide-react";
@@ -64,6 +62,8 @@ import { useToast } from '@/hooks/use-toast';
 import { findSwapMatchesAction } from './actions';
 import type { SuggestSwapMatchesOutput } from '@/ai/flows/suggest-swap-matches';
 import { UsernameSetupDialog } from '@/components/username-setup-dialog';
+import { UserSearch } from '@/components/user-search';
+import { LogoutConfirmation } from '@/components/logout-confirmation';
 
 const sidebarNavItems = [
   { href: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
@@ -88,7 +88,7 @@ function DashboardTopBar() {
   const { toggleSidebar, isMobile } = useSidebar();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [needsUsernameSetup, setNeedsUsernameSetup] = useState(false);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -102,14 +102,9 @@ function DashboardTopBar() {
         const profileData = snapshot.val();
         if (profileData) {
           setUserProfile(profileData);
-          setNeedsUsernameSetup(false);
-        } else {
-          // New user without profile, needs username setup
-          setNeedsUsernameSetup(true);
         }
       } else {
         setUserProfile(null);
-        setNeedsUsernameSetup(false);
       }
     });
     return () => unsubscribe();
@@ -127,19 +122,6 @@ function DashboardTopBar() {
     }
   };
 
-  const handleUsernameCreated = async (username: string) => {
-    setNeedsUsernameSetup(false);
-    // Refresh user profile
-    if (currentUser) {
-      const userProfileRef = ref(db, `userProfiles/${currentUser.uid}`);
-      const snapshot = await get(userProfileRef);
-      const profileData = snapshot.val();
-      if (profileData) {
-        setUserProfile(profileData);
-      }
-    }
-  };
-
   const handleProfileClick = () => {
     if (userProfile?.username) {
       router.push(`/profile/${userProfile.username}`);
@@ -147,58 +129,64 @@ function DashboardTopBar() {
   };
 
   return (
-    <header className="flex items-center justify-between p-4 border-b bg-background">
-      <div className="flex items-center gap-2">
-        {isMobile && (
-          <Button variant="ghost" size="icon" onClick={toggleSidebar} aria-label="Toggle sidebar">
-            <PanelLeft />
-          </Button>
-        )}
-        <h1 className="text-2xl font-semibold">
-          Hi, <span className="text-primary">{userDisplayName}</span>!
-        </h1>
-      </div>
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input type="search" placeholder="Search users..." className="pl-10 pr-4 py-2 h-10 w-full md:w-64 rounded-full bg-secondary" />
+    <>
+      <header className="flex items-center justify-between p-4 border-b bg-background">
+        <div className="flex items-center gap-2">
+          {isMobile && (
+            <Button variant="ghost" size="icon" onClick={toggleSidebar} aria-label="Toggle sidebar">
+              <PanelLeft />
+            </Button>
+          )}
+          <h1 className="text-2xl font-semibold">
+            Hi, <span className="text-primary">{userDisplayName}</span>!
+          </h1>
         </div>
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <Bell className="h-6 w-6" />
-          <span className="sr-only">Notifications</span>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 cursor-pointer">
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "User"} />
-                <AvatarFallback>
-                  {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : <UserCircle />}
-                </AvatarFallback>
-              </Avatar>
-             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleProfileClick} className="cursor-pointer">
-              <UserCircle className="mr-2 h-4 w-4" />
-              <span>View Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/profile/edit">
-                <Edit3 className="mr-2 h-4 w-4" />
-                <span>Edit Profile</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sign Out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </header>
+        <div className="flex items-center gap-4">
+          <UserSearch currentUserId={currentUser?.uid} />
+          <Button variant="ghost" size="icon" className="rounded-full">
+            <Bell className="h-6 w-6" />
+            <span className="sr-only">Notifications</span>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 cursor-pointer">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "User"} />
+                  <AvatarFallback>
+                    {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : <UserCircle />}
+                  </AvatarFallback>
+                </Avatar>
+               </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleProfileClick} className="cursor-pointer">
+                <UserCircle className="mr-2 h-4 w-4" />
+                <span>View Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/profile/edit">
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  <span>Edit Profile</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsLogoutDialogOpen(true)}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
+      <LogoutConfirmation
+        isOpen={isLogoutDialogOpen}
+        onOpenChange={setIsLogoutDialogOpen}
+        onConfirm={handleSignOut}
+        userDisplayName={userDisplayName}
+      />
+    </>
   );
 }
 
@@ -213,6 +201,8 @@ function DashboardSidebarContent() {
   const [matchResults, setMatchResults] = useState<SuggestSwapMatchesOutput | null>(null);
   const [matchError, setMatchError] = useState<string | null>(null);
   const [isFindingMatches, setIsFindingMatches] = useState(false);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const [isLogoLogoutDialogOpen, setIsLogoLogoutDialogOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -238,6 +228,11 @@ function DashboardSidebarContent() {
     } catch (error: any) {
       toast({ variant: "destructive", title: "Sign Out Failed", description: error.message });
     }
+  };
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    console.log('Logo clicked, opening logout dialog');
+    setIsLogoLogoutDialogOpen(true);
   };
 
   const handleFindSwapMatches = async () => {
@@ -272,6 +267,8 @@ function DashboardSidebarContent() {
     }
   };
 
+  const userDisplayName = currentUser?.displayName?.split(' ')[0] || currentUser?.email?.split('@')[0] || "Swapper";
+
   return (
     <>
       <SidebarHeader className="p-4">
@@ -279,7 +276,7 @@ function DashboardSidebarContent() {
             "flex items-center gap-2",
             sidebarState === "collapsed" && "justify-center"
           )}>
-          <Logo />
+          <Logo onClick={handleLogoClick} />
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
@@ -407,7 +404,7 @@ function DashboardSidebarContent() {
             </AlertDialogContent>
           </AlertDialog>
            <SidebarMenuButton
-            onClick={handleSignOut}
+            onClick={() => setIsLogoutDialogOpen(true)}
             className={cn("w-full justify-start", sidebarState === "collapsed" && "w-auto justify-center")}
             tooltip="Sign Out"
           >
@@ -416,6 +413,20 @@ function DashboardSidebarContent() {
           </SidebarMenuButton>
         </div>
       </SidebarFooter>
+
+      <LogoutConfirmation
+        isOpen={isLogoutDialogOpen}
+        onOpenChange={setIsLogoutDialogOpen}
+        onConfirm={handleSignOut}
+        userDisplayName={userDisplayName}
+      />
+
+      <LogoutConfirmation
+        isOpen={isLogoLogoutDialogOpen}
+        onOpenChange={setIsLogoLogoutDialogOpen}
+        onConfirm={handleSignOut}
+        userDisplayName={userDisplayName}
+      />
     </>
   );
 }

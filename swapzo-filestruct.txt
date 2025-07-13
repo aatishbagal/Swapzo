@@ -16,7 +16,7 @@ src/
 │   │   ├── offers/
 │   │   │   └── page.tsx
 │   │   └── profile/
-│   │       ├── [userId]/
+│   │       ├── [username]/
 │   │       │   └── page.tsx
 │   │       └── edit/
 │   │           └── page.tsx
@@ -71,11 +71,13 @@ src/
 │   ├── lenis-scroll.tsx
 │   ├── logo.tsx
 │   ├── mode-toggle.tsx
-│   └── theme-provider.tsx
+│   ├── theme-provider.tsx
+│   └── username-setup-dialog.tsx
 ├── hooks/
 │   ├── use-mobile.tsx
 │   └── use-toast.ts
 └── lib/
     ├── firebase.ts
     ├── mongodb.ts
+    ├── username-utils.ts
     └── utils.ts

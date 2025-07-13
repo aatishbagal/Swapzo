@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,6 +54,7 @@ const recentActivity = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profileCompletion, setProfileCompletion] = useState(0);
 
@@ -65,7 +67,7 @@ export default function DashboardPage() {
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [router]);
   
   
   useEffect(() => {
