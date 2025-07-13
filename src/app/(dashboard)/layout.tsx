@@ -341,10 +341,12 @@ function DashboardSidebarContent() {
                       <>
                         <div>
                           <h3 className="font-semibold text-lg mb-1">Direct Matches:</h3>
-                          {matchResults.directMatches.length > 0 ? (
+                          {matchResults.directMatches && matchResults.directMatches.length > 0 ? (
                             <ul className="list-disc pl-5 space-y-1 text-sm">
-                              {matchResults.directMatches.map((match, index) => (
-                                <li key={`direct-${index}`}>{match}</li>
+                              {matchResults.directMatches.map((matchString, index) => (
+                                <li key={`direct-${index}`}>
+                                  {typeof matchString === 'string' ? matchString : 'Match found'}
+                                </li>
                               ))}
                             </ul>
                           ) : (
@@ -353,27 +355,27 @@ function DashboardSidebarContent() {
                         </div>
                         <div>
                           <h3 className="font-semibold text-lg mb-1">Chain Matches:</h3>
-                          {matchResults.chainMatches.length > 0 ? (
+                          {matchResults.chainMatches && matchResults.chainMatches.length > 0 ? (
                             <ul className="list-disc pl-5 space-y-1 text-sm">
-                              {matchResults.chainMatches.map((match, index) => (
-                                <li key={`chain-${index}`}>{match}</li>
+                              {matchResults.chainMatches.map((matchString, index) => (
+                                <li key={`chain-${index}`}>
+                                  {typeof matchString === 'string' ? matchString : 'Chain match found'}
+                                </li>
                               ))}
                             </ul>
                           ) : (
                             <p className="text-sm text-muted-foreground">No chain matches found.</p>
                           )}
                         </div>
-                        {(matchResults.directMatches.length > 0 || matchResults.chainMatches.length > 0) && (
+                        {((matchResults.directMatches && matchResults.directMatches.length > 0) || 
+                          (matchResults.chainMatches && matchResults.chainMatches.length > 0)) && (
                           <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                             <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                              📝 <strong>Note:</strong> Profile viewing for matched swappers is currently under development. Contact information and detailed profiles will be available soon.
+                              📝 <strong>Note:</strong> Use the "Find Matches" tab in the dashboard for detailed profile viewing and chat options.
                             </p>
                           </div>
                         )}
                       </>
-                    )}
-                     {!isFindingMatches && !matchError && !matchResults && (
-                        <p className="text-sm text-muted-foreground">Click "Find Swap Match" to see results.</p>
                     )}
                   </div>
                 </AlertDialogDescription>
